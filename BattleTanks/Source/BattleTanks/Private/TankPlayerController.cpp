@@ -22,7 +22,6 @@ void ATankPlayerController::BeginPlay() {
 void ATankPlayerController::Tick(float DeltaTime) {
 	Super::Tick( DeltaTime );
 	AimTowardsCrosshair();
-	UE_LOG(LogTemp, Warning, TEXT("Player controller ticking"))
 }
 
 
@@ -37,7 +36,7 @@ void ATankPlayerController::AimTowardsCrosshair() {
 	FVector OutHitLocation; //Out parameter
 	if (GetSightRayHitLocation(OutHitLocation))
 	{
-		//UE_LOG(LogTemp, Warning, TEXT("LookLocation %s"), *OutHitLocation.ToString())
+		GetControlledTank()->AimAt(OutHitLocation);
 			
 		//TODO: Tell controlled tank to aim at this point
 	}
@@ -56,10 +55,24 @@ bool ATankPlayerController::GetSightRayHitLocation(FVector& OutHitLocation) cons
 	FVector LookDirection;
 	if (GetLookDirection(ScreenLocation, LookDirection))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Lok Direction: %s"), *LookDirection.ToString())
-	}
 		// line-trace along that LookDirection, and see waht we hit(up to max range)
+		GetLookVectorLocation(LookDirection, OutHitLocation);
+	}
+		
 	return true;
+}
+
+
+bool ATankPlayerController::GetLookVectorLocation(FVector LookDirection, FVector& OutHitLocation) const {
+	FHitResult HitResult;
+	auto StartLocation = PlayerCameraManager->GetCameraLocation();
+	auto EndLocation = StartLocation + LookDirection * LineTraceRange;
+	if (GetWorld()->LineTraceSingleByChannel(HitResult, StartLocation, EndLocation, ECollisionChannel::ECC_Visibility))
+	{
+		OutHitLocation = HitResult.Location;
+		return true;
+	}
+	return false; //Line trace didnt suceed
 }
 
 
