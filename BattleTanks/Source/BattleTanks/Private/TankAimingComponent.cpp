@@ -1,7 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "TankAimingComponent.h"
+#include "TankBarrel.h"
+#include "Kismet/GameplayStatics.h"
+
 
 // Sets default values for this component's properties
 UTankAimingComponent::UTankAimingComponent()
@@ -14,26 +16,50 @@ UTankAimingComponent::UTankAimingComponent()
 }
 
 
-// Called when the game starts
-void UTankAimingComponent::BeginPlay()
-{
-	Super::BeginPlay();
+void UTankAimingComponent::MoveBarrelTowards(FVector AimDirection) {
+	// work-out diff between current barrel rotation and AimDirection
+	auto BarrelRotator = Barrel->GetForwardVector().Rotation();
+	auto AimAsRotator = AimDirection.Rotation();
+	auto DeltaRotator = AimAsRotator - BarrelRotator;
+		
+	UE_LOG(LogTemp, Warning, TEXT("AimAsRotator: %s"), *AimAsRotator.ToString())
+		
+	Barrel->Elevate(5); // TODO: remove magic number
+}
 
-	// ...
+
+void UTankAimingComponent::SetBarrelReference(UTankBarrel* BarrelToSet) {
+	Barrel = BarrelToSet;
+}
+
+
+void UTankAimingComponent::AimAt(FVector HitLocation, float LaunchSpeed) {
 	
-}
+	if (!Barrel) { return; }
 
+	FVector OutLaunchVelocity;
+	FVector StartLocation = Barrel->GetSocketLocation(FName("Projectile"));
 
-// Called every frame
-void UTankAimingComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	bool bHaveAimSolution = UGameplayStatics::SuggestProjectileVelocity
+	(
+		this,
+		OutLaunchVelocity,
+		StartLocation,
+		HitLocation,
+		LaunchSpeed,
+		false,
+		0,
+		0,
+		ESuggestProjVelocityTraceOption::DoNotTrace
+	);
 
-	// ...
-}
-
-
-void UTankAimingComponent::AimAt(FVector HitLocation) {
-	auto OurTankName = GetOwner()->GetName();
-	UE_LOG(LogTemp, Warning, TEXT("%s aimaing at %s"), *OurTankName, *HitLocation.ToString())
+	if(bHaveAimSolution)
+	{
+		
+		FVector AimDirection = OutLaunchVelocity.GetSafeNormal();
+		auto TankName = GetOwner()->GetName();
+		MoveBarrelTowards(AimDirection);
+		UE_LOG(LogTemp, Warning, TEXT("%s aiming at %s"), *TankName, *AimDirection.ToString());
+		
+	}
 }
